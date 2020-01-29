@@ -271,8 +271,10 @@ maybe you need to adjust the calibration dates")
     ## X is a list whose i-th element gives the indices of the branches
     ## that are contiguous to branch 'i'
 
-    ## D_ki and A_ki are defined in the SI of the paper
+    ## D_ki and A_ki are defined in the SI of the paper (Paradis 2013)
+    # 1 if the node k ends the branch i
     D_ki <- match(unknown.ages, e2)
+    # 1 if the node k starts the branch i
     A_ki <- lapply(unknown.ages, function(x) which(x == e1))
 
     gradient.poisson <- function(rate, node.time) {
@@ -310,8 +312,9 @@ maybe you need to adjust the calibration dates")
                    } else { # the general case
                        for (i in 1:Nbasal)
                            j <- basal[i]
-                           gr[j] <- gr[j] -
-                               lambda*2*(rate[j]*(1 - 1/Nbasal) - sum(rate[basal[-i]])/Nbasal)/(Nbasal - 1)
+                           gr[j] <- gr[j] - lambda*2*(
+                                  rate[j]*(1 - 1/Nbasal) - sum(rate[basal[-i]])/Nbasal
+                                  ) / (Nbasal - 1)
                    }
                    gr
                },
@@ -331,7 +334,8 @@ maybe you need to adjust the calibration dates")
     log.lik.poisson <- function(rate, node.time) {
         age[unknown.ages] <- node.time
         real.edge.length <- age[e1] - age[e2]
-        if (isTRUE(any(real.edge.length < 0))) return(-1e100)
+        if (isTRUE(any(real.edge.length < 0)))
+            return(-1e100)
         B <- rate * real.edge.length
         sum(el * log(B) - B - lfactorial.el)
     }
@@ -411,7 +415,8 @@ maybe you need to adjust the calibration dates")
 
     k <- length(LOW) # number of free parameters
 
-    if (!quiet) cat("Fitting in progress... get a first set of estimates\n")
+    if (!quiet)
+        cat("Fitting in progress... get a first set of estimates\n")
 
     out <- nlminb(start.para, f, g,
                   control = opt.ctrl, lower = LOW, upper = UP)
@@ -444,11 +449,14 @@ maybe you need to adjust the calibration dates")
     epsilon <- control$epsilon
     i <- 0L
 
-    if (!quiet) cat("         Penalised log-lik =", current.ploglik, "\n")
+    if (!quiet)
+        cat("         Penalised log-lik =", current.ploglik, "\n")
 
     repeat {
-        if (dual.iter.max < 1) break
-        if (!quiet) cat("Optimising rates...")
+        if (dual.iter.max < 1)
+            break
+        if (!quiet)
+            cat("Optimising rates...")
         out.rates <- nlminb(current.rates, f.rates, g.rates,# h.rates,
                             control = list(eval.max = 1000, iter.max = 1000,
                                            step.min = 1e-8, step.max = .1),

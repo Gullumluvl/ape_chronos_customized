@@ -1,3 +1,7 @@
+# 2020-01-29 (4)
+
+Code layout changes.
+
 # 2020-01-29 (3)
 
 A new column of the `calibration` data.frame can be provided to control the
