@@ -1,3 +1,10 @@
+# 2020-01-29 (2)
+
+ I found that some estimations end directly after initialization.
+Therefore I replaced the likelihood convergence threshold by an argument
+that can be controled (`epsilon`). I also propose to bind the number of
+iterations to the returned object.
+
 # 2020-01-29 (1)
 
 I found that some calibration specifications failed, and this is

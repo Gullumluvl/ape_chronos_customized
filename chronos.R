@@ -11,7 +11,7 @@
 
 .chronos.ctrl <-
     list(tol = 1e-8, iter.max = 1e4, eval.max = 1e4, nb.rate.cat = 10,
-         dual.iter.max = 20)
+         dual.iter.max = 20, epsilon = 1e-6)
 
 makeChronosCalib <-
     function(phy, node = "root", age.min = 1, age.max = age.min,
@@ -435,6 +435,7 @@ maybe you need to adjust the calibration dates")
     if (model == "discrete" && Nb.rates > 1) current.freqs <- out$par[FREQ]
 
     dual.iter.max <- control$dual.iter.max
+    epsilon <- control$epsilon
     i <- 0L
 
     if (!quiet) cat("         Penalised log-lik =", current.ploglik, "\n")
@@ -470,7 +471,7 @@ maybe you need to adjust the calibration dates")
 
         delta.ploglik <- new.ploglik - current.ploglik
         if (is.na(delta.ploglik)) break # fix by Daniel Lang
-        if (delta.ploglik > 1e-6 && i <= dual.iter.max) {
+        if (delta.ploglik > epsilon && i <= dual.iter.max) {
             current.ploglik <- new.ploglik
             current.rates <- new.rates
             current.ages <- out.ages$par
@@ -507,6 +508,7 @@ maybe you need to adjust the calibration dates")
     attr(phy, "convergence") <- if (out$convergence == 0) TRUE else FALSE
     attr(phy, "message") <- out$message
     attr(phy, "PHIIC") <- PHIIC
+    attr(phy, "niter") <- i
     age[unknown.ages] <- current.ages #out$par[-EDGES]
     phy$edge.length <- age[e1] - age[e2]
     class(phy) <- c("chronos", class(phy))
