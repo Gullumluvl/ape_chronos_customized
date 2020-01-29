@@ -1,3 +1,9 @@
+# 2020-01-29 (3)
+
+A new column of the `calibration` data.frame can be provided to control the
+initial value of unknown ages, making it possible to repeat an estimation with 
+different starting points in order to spot optimisation issues.
+
 # 2020-01-29 (2)
 
  I found that some estimations end directly after initialization.

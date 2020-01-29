@@ -103,6 +103,10 @@ chronos <-
     node <- calibration$node
     age.min <- calibration$age.min
     age.max <- calibration$age.max
+    # Starting points of node ages to *estimate*. Calibrated nodes can be NA.
+    age.start <- if(is.null(calibration$age.start)) {
+                      rep(NA, length(node))
+                      } else {calibration$age.start}
 
     if (model == "correlated") {
 ### `basal' contains the indices of the basal edges
@@ -142,9 +146,11 @@ chronos <-
         ini.time <- age
         ini.time[ROOT:(n + m)] <- NA
 
-        ini.time[node] <-
-            if (is.null(age.max)) age.min
-            else runif(length(node), age.min, age.max) # (age.min + age.max) / 2
+        ini.time[node] <- ifelse(
+                        is.na(age.start),
+                        if (is.null(age.max)) age.min
+                        else runif(length(node), age.min, age.max), # (age.min + age.max) / 2
+                        age.start)
 
         ## if no age given for the root, find one approximately:
         if (is.na(ini.time[ROOT]))
@@ -223,7 +229,7 @@ maybe you need to adjust the calibration dates")
     upper.age[node - n] <- age.max
 
     ## find nodes known within an interval:
-    ii <- which(age.min != age.max)
+    ii <- which(is.na(age.min) | (age.min != age.max))
     ## drop them from 'node' since they will be estimated:
     if (length(ii)) {
         node <- node[-ii]
