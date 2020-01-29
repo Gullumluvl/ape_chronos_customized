@@ -1,3 +1,34 @@
+# 2020-01-29 (1)
+
+I found that some calibration specifications failed, and this is
+associated with the filling of `ini.time` at the start: the original
+code was initializing unknown dates at the midpoints between
+calibrations. However this could fail in the following case:
+
+            /-------C1
+       C0--X
+            \C2
+
+    <--|-----|-------| age
+
+
+or `((C1,C2)X)C0);` where X has to be estimated and C0,C1,C2 are calibrated.
+
+if the age of C1 is much smaller than the age of C2, we could end up
+with X younger than C2, which causes an error. More precisely, it
+happens when (age(C0) - age(C1))/2 > age(C0) - age(C2).
+
+The resulting error is then:
+
+    Setting initial dates...
+    Error in ape::chronos(tree2, lambda = 100, calibration = subcalib2) :
+      cannot find reasonable starting dates after 1000 tries:
+    maybe you need to adjust the calibration dates
+
+As a solution, I changed the iteration order of the paths, so that we
+initialise first unknown ages preceeding the closest calibrations (i.e.
+oldest). In the example, we start with the path [C0-X-C2] *before* [C0-X-C1].
+
 # 2020-01-29 (0)
 
 Copy `chronos.R` from APE v5.3-7 (<http://ape-package.ird.fr>).

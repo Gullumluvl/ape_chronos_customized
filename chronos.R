@@ -1,4 +1,4 @@
-## chronos.R (2019-11-22)
+## chronos.R (2020-01-29)
 
 ##   Molecular Dating With Penalized and Maximum Likelihood
 
@@ -6,6 +6,8 @@
 
 ## This file is part of the R-package `ape'.
 ## See the file ../COPYING for licensing issues.
+
+## Modifications 2019-2020 Guillaume Louvel
 
 .chronos.ctrl <-
     list(tol = 1e-8, iter.max = 1e4, eval.max = 1e4, nb.rate.cat = 10,
@@ -68,6 +70,15 @@ chronos.control <- function(...)
     }
     x
 }
+
+next.calib <- function(y, ini.time) {
+  times <- ini.time[y]
+  runs.na <- rle(is.na(times))
+  next.calib.i <- cumsum(runs.na$lengths)[runs.na$values] + 1
+  ncal <- ini.time[y[next.calib.i]]
+  return(ncal)  #if(length(ncal)){ncal}else{-1})
+}
+
 
 chronos <-
     function(phy, lambda = 1, model = "correlated", quiet = FALSE,
@@ -139,8 +150,17 @@ chronos <-
         if (is.na(ini.time[ROOT]))
             ini.time[ROOT] <- fact.root * max(if (is.null(age.max)) age.min else age.max)
 
-        ISnotNA.ALL <- unlist(lapply(seq.nod, function(x) sum(!is.na(ini.time[x]))))
-        o <- order(ISnotNA.ALL, decreasing = TRUE)
+        # For each path to the leaves, return the calibrations following the last NA.
+        calibs.after.NA <- lapply(seq.nod, next.calib, ini.time)
+
+        # This recycles shorter elements, but doesn't matter with the order() function
+        L <- max(sapply(calibs.after.NA, length))
+        calibs.df <- as.data.frame(
+                            do.call(rbind,
+                                    lapply(calibs.after.NA,
+                                           function(r) c(r, rep(-1, L-length(r)))
+                                   )))
+        o <- do.call(order, c(calibs.df, decreasing=TRUE))
 
         for (y in seq.nod[o]) {
             ISNA <- is.na(ini.time[y])
