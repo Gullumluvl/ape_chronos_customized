@@ -1,8 +1,8 @@
-## chronos.R (2017-11-23)
+## chronos.R (2019-11-22)
 
 ##   Molecular Dating With Penalized and Maximum Likelihood
 
-## Copyright 2013-2017 Emmanuel Paradis
+## Copyright 2013-2017 Emmanuel Paradis, 2018 Santiago Claramunt
 
 ## This file is part of the R-package `ape'.
 ## See the file ../COPYING for licensing issues.
@@ -115,6 +115,8 @@ chronos <-
 
     age <- numeric(n + m)
 
+    lfactorial.el <- lfactorial(el) # Calculate the factorials here once (SC)
+
 ### This bit sets 'ini.time' and should result in no negative branch lengths
 
     if (!quiet) cat("\nSetting initial dates...\n")
@@ -223,7 +225,7 @@ maybe you need to adjust the calibration dates")
 
     ## the bounds for the rates:
     lower.rate <- rep(tol, Nb.rates)
-    upper.rate <- rep(100 - tol, Nb.rates) # needs to be adjusted to higher values?
+    upper.rate <- rep(1e5 - tol, Nb.rates)
 
 ### Gradient
     degree_node <- tabulate(phy$edge)
@@ -305,7 +307,21 @@ maybe you need to adjust the calibration dates")
         real.edge.length <- age[e1] - age[e2]
         if (isTRUE(any(real.edge.length < 0))) return(-1e100)
         B <- rate * real.edge.length
-        sum(el * log(B) - B - lfactorial(el))
+        sum(el * log(B) - B - lfactorial.el)
+    }
+
+    ## New function for incorporating multiple rate categories (by SC).
+    ## This one calculates the conditional probability for each branch
+    ## and rate regime, and then computes a weighted average (using the
+    ## frequencies as weights) before summing logs across branches.
+    log.lik.poisson.discrete <- function(rate, node.time, freq) {
+        age[unknown.ages] <- node.time
+        real.edge.length <- age[e1] - age[e2]
+        if (any(real.edge.length < 0)) return(-1e+100)
+        B <- real.edge.length %*% t(rate)
+        PPs <- el * log(B) - B - lfactorial.el
+        Freqs <- c(freq, 1 - sum(freq))
+        sum(PPs %*% Freqs)
     }
 
 ### penalized log-likelihood
@@ -331,9 +347,10 @@ maybe you need to adjust the calibration dates")
                if (Nb.rates == 1)
                    function(rate, node.time) log.lik.poisson(rate, node.time)
                else function(rate, node.time, freq) {
-                   if (isTRUE(sum(freq) > 1)) return(-1e100)
-                   rate.freq <- sum(c(freq, 1 - sum(freq)) * rate)
-                   log.lik.poisson(rate.freq, node.time)
+                   if (sum(freq) > 1) return(-1e100)
+                   ## rate.freq <- sum(c(freq, 1 - sum(freq)) * rate)
+                   ## log.lik.poisson(rate.freq, node.time)
+                   log.lik.poisson.discrete(rate, node.time, freq) # by SC
                })
 
     opt.ctrl <- list(eval.max = control$eval.max, iter.max = control$iter.max)
@@ -446,10 +463,12 @@ maybe you need to adjust the calibration dates")
     if (!quiet) cat("\nDone.\n")
 
     if (model == "discrete") {
-        rate.freq <-
-            if (Nb.rates == 1) current.rates
-            else mean(c(current.freqs, 1 - sum(current.freqs)) * current.rates)
-        logLik <- log.lik.poisson(rate.freq, current.ages)
+        ## rate.freq <-
+        logLik <-
+            if (Nb.rates == 1) log.lik.poisson(current.rates, current.ages)
+            else log.lik.poisson.discrete(current.rates, current.ages, current.freqs)
+##            else mean(c(current.freqs, 1 - sum(current.freqs)) * current.rates)
+##        logLik <- log.lik.poisson(rate.freq, current.ages)
         PHIIC <- list(logLik = logLik, k = k, PHIIC = - 2 * logLik + 2 * k)
     } else {
         logLik <- log.lik.poisson(current.rates, current.ages)
@@ -464,7 +483,8 @@ maybe you need to adjust the calibration dates")
     attr(phy, "ploglik") <- -out$objective
     attr(phy, "rates") <- current.rates #out$par[EDGES]
     if (model == "discrete" && Nb.rates > 1)
-        attr(phy, "frequencies") <- current.freqs
+        attr(phy, "frequencies") <- c(current.freqs, 1 - sum(current.freqs))
+    attr(phy, "convergence") <- if (out$convergence == 0) TRUE else FALSE
     attr(phy, "message") <- out$message
     attr(phy, "PHIIC") <- PHIIC
     age[unknown.ages] <- current.ages #out$par[-EDGES]
